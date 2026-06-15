@@ -1,0 +1,32 @@
+{
+  "name": "Parallel",
+
+  "status": "PARTIAL_SUCCESS",
+
+  "duration_ms": 180,
+
+  "succeeded": 2,
+
+  "failed": 1,
+
+  "steps": [
+
+    {
+      "name": "LoadCustomer",
+      "status": "SUCCESS"
+    },
+
+    {
+      "name": "LoadVehicle",
+      "status": "SUCCESS"
+    },
+
+    {
+      "name": "LoadClaims",
+
+      "status": "FAILED",
+
+      "error": "Claims service timeout"
+    }
+  ]
+}

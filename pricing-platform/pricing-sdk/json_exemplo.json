@@ -1,0 +1,75 @@
+{
+  "correlation_id": "c1d9f3e4",
+
+  "product": "AUTO",
+
+  "status": "SUCCESS",
+
+  "duration_ms": 812,
+
+  "steps": [
+
+    {
+      "name": "LoadProposal",
+      "status": "SUCCESS",
+      "duration_ms": 25
+    },
+
+    {
+      "name": "Parallel",
+
+      "status": "SUCCESS",
+
+      "duration_ms": 180,
+
+      "succeeded": 3,
+
+      "failed": 0,
+
+      "steps": [
+
+        {
+          "name": "LoadCustomer",
+          "status": "SUCCESS",
+          "duration_ms": 80
+        },
+
+        {
+          "name": "LoadVehicle",
+          "status": "SUCCESS",
+          "duration_ms": 140
+        },
+
+        {
+          "name": "LoadClaims",
+          "status": "SUCCESS",
+          "duration_ms": 180
+        }
+      ]
+    },
+
+    {
+      "name": "AutoRisk",
+      "status": "SUCCESS",
+      "duration_ms": 45
+    },
+
+    {
+      "name": "pacote de calculo",
+      "status": "SUCCESS",
+      "duration_ms": 500
+    },
+
+    {
+      "name": "ApplyDiscount",
+      "status": "SUCCESS",
+      "duration_ms": 30
+    }
+  ],
+
+  "output": {
+    "premium": 1250.50
+  },
+
+  "errors": []
+}
