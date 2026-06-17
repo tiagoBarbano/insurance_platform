@@ -9,6 +9,7 @@ from time import perf_counter
 
 from context import PipelineContext
 from enums import StepStatus
+from db import init_db_pool, record_step_event, record_pipeline_event
 
 
 @dataclass
@@ -322,6 +323,12 @@ class Pipeline:
         logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(name)s %(message)s")
         logger.debug("Starting pipeline execution for correlation_id=%s", getattr(context, "correlation_id", None))
 
+        # warm DB pool in background (no-op if DATABASE_URL not configured)
+        try:
+            asyncio.create_task(init_db_pool())
+        except Exception:
+            logger.debug("Could not schedule DB pool init")
+
         started_at = datetime.now(timezone.utc)
         start_perf = perf_counter()
         executions: List[Union[StepExecution, ParallelResult]] = []
@@ -364,7 +371,7 @@ class Pipeline:
         overall_status = StepStatus.FAILED if errors else StepStatus.SUCCESS
         logger.debug("Pipeline finished (duration_ms=%.3f) status=%s", (finished_perf - start_perf) * 1000, overall_status)
 
-        return PipelineResult(
+        pipeline_result = PipelineResult(
             correlation_id=context.correlation_id,
             product=getattr(context, "product", None),
             started_at=started_at,
@@ -375,6 +382,16 @@ class Pipeline:
             output=context.result,
             errors=errors,
         )
+
+        # persist pipeline result in background (best-effort)
+        try:
+            correlation_id = getattr(context, "correlation_id", None)
+            pipeline_name = getattr(context, "pipeline_name", getattr(context, "product", None)) or ""
+            asyncio.create_task(record_pipeline_event(correlation_id, pipeline_name, pipeline_result.to_dict()))
+        except Exception:
+            logger.exception("Failed scheduling persistence for pipeline result %s", getattr(context, "correlation_id", None))
+
+        return pipeline_result
 
     async def _execute_step(self, step, context: PipelineContext):
         logger = logging.getLogger(__name__)
@@ -387,14 +404,30 @@ class Pipeline:
         finished_at = datetime.now(timezone.utc)
         logger.debug("_execute_step finished %s (elapsed_ms=%.3f)", step.__class__.__name__, (finished_perf - start_perf) * 1000)
 
-        # If this is a ParallelResult keep it as-is
+        # If this is a ParallelResult keep it as-is but persist child executions asynchronously
         if isinstance(output, ParallelResult):
+            try:
+                correlation_id = getattr(context, "correlation_id", None)
+                pipeline_name = getattr(context, "pipeline_name", getattr(context, "product", None))
+                for child in output.steps:
+                    try:
+                        asyncio.create_task(record_step_event(correlation_id, pipeline_name or "", child.to_dict()))
+                    except Exception:
+                        logger.exception("Failed scheduling persistence for parallel child %s", child.name)
+
+                # persist parallel summary as an event as well
+                try:
+                    asyncio.create_task(record_step_event(correlation_id, pipeline_name or "", output.to_dict()))
+                except Exception:
+                    logger.exception("Failed scheduling persistence for parallel summary %s", output.name)
+            except Exception:
+                logger.exception("Failed scheduling persistence for parallel result")
             return output
 
         # expect StepResult
         status = output.status if isinstance(output, StepResult) else StepStatus.SUCCESS
 
-        return StepExecution(
+        execution = StepExecution(
             name=step.__class__.__name__,
             status=status,
             started_at=started_at,
@@ -403,3 +436,13 @@ class Pipeline:
             output=(output.output if isinstance(output, StepResult) else output),
             error=(output.message if isinstance(output, StepResult) else None),
         )
+
+        # persist step execution in background (best-effort)
+        try:
+            correlation_id = getattr(context, "correlation_id", None)
+            pipeline_name = getattr(context, "pipeline_name", getattr(context, "product", None)) or ""
+            asyncio.create_task(record_step_event(correlation_id, pipeline_name, execution.to_dict()))
+        except Exception:
+            logger.exception("Failed scheduling persistence for step %s", execution.name)
+
+        return execution

@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pricing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pricing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: ghcr.io/astral-sh/uv:python3.13-bookworm
+    profiles: ["migrate"]
+    working_dir: /workspace/pricing-sdk
+    volumes:
+      - ./:/workspace
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/pricing
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "export PYTHONPATH=/workspace/pricing-sdk:$PYTHONPATH && \
+      python -m pip install --upgrade pip && \
+      python -m pip install alembic sqlalchemy psycopg[binary] pydantic-settings && \
+      alembic -c alembic.ini upgrade head"
+    restart: "no"
+    
+
+volumes:
+  postgres_data:

@@ -123,9 +123,7 @@ class OAuthDemoStep(BaseStep):
 
 
 async def main() -> None:
-    ctx = PipelineContext(
-        correlation_id="cid-1", product="test", data={"has_discount": False}
-    )
+    ctx = PipelineContext(correlation_id="cid-1", product="test", data={"has_discount": False})
 
     # integrator configurado para gerar JWT localmente
     integrator_jwt = HttpIntegrator()
@@ -159,4 +157,4 @@ async def main() -> None:
     print("Errors:", result.errors)
 
 if __name__ == "__main__":
-    asyncio.run(main(), debug=True)
+    asyncio.run(main(), debug=False)
