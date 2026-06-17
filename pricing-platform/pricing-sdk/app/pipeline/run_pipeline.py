@@ -13,6 +13,7 @@ Arquitetura resumo:
 """
 
 import asyncio
+import uuid
 
 from pipeline import Pipeline, BaseStep, ParallelStep, StepResult
 from context import PipelineContext
@@ -123,7 +124,8 @@ class OAuthDemoStep(BaseStep):
 
 
 async def main() -> None:
-    ctx = PipelineContext(correlation_id="cid-1", product="test", data={"has_discount": False})
+    correlation_id = f"cid-{uuid.uuid4()}"
+    ctx = PipelineContext(correlation_id=correlation_id, product="test", data={"has_discount": False})
 
     # integrator configurado para gerar JWT localmente
     integrator_jwt = HttpIntegrator()

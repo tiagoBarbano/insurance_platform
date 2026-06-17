@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from datetime import datetime, timezone
 from typing import Any, List, Union
 
@@ -387,7 +388,16 @@ class Pipeline:
         try:
             correlation_id = getattr(context, "correlation_id", None)
             pipeline_name = getattr(context, "pipeline_name", getattr(context, "product", None)) or ""
-            asyncio.create_task(record_pipeline_event(correlation_id, pipeline_name, pipeline_result.to_dict()))
+            print(f"Scheduling persistence for pipeline result with correlation_id {correlation_id}")
+            task = asyncio.create_task(record_pipeline_event(correlation_id, pipeline_name, pipeline_result.to_dict()))
+            try:
+                # wait a short time for the background persist to complete so the
+                # caller exiting the event loop doesn't cancel it immediately.
+                await asyncio.wait_for(task, timeout=2)
+            except asyncio.TimeoutError:
+                logger.debug("Pipeline persistence did not finish within timeout; continuing")
+            except Exception:
+                logger.exception("Exception while awaiting pipeline persistence task")
         except Exception:
             logger.exception("Failed scheduling persistence for pipeline result %s", getattr(context, "correlation_id", None))
 

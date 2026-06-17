@@ -1,4 +1,0 @@
-alembic
-sqlalchemy
-asyncpg
-psycopg-binary

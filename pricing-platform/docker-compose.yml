@@ -31,7 +31,7 @@ services:
     command: >
       sh -c "export PYTHONPATH=/workspace/pricing-sdk:$PYTHONPATH && \
       python -m pip install --upgrade pip && \
-      python -m pip install alembic sqlalchemy psycopg[binary] pydantic-settings && \
+      python -m pip install alembic sqlalchemy psycopg2-binary pydantic-settings && \
       alembic -c alembic.ini upgrade head"
     restart: "no"
     
